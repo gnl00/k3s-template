@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config
+  namespace: test
+data:
+  my.cnf: | # | 符号被称为折叠标记，表示下方缩进的区块中包含多行文本数据
+    [mysqld]
+    default_storage_engine=innodb
+    lower_case_table_names=1
+    character-set-server=utf8
+    default-time_zone = '+8:00'
+    log_bin = /opt/mysql/log

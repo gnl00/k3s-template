@@ -1,0 +1,46 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: mysql-sc
+  namespace: test
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer # 延迟 PVC 绑定，直到 pod 被调度
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+  namespace: test
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain # PVC 被删除后，PV 的留存策略
+  storageClassName: mysql-sc
+  local: # 表示 pv 使用本地存储
+    path: /mnt/disks/vol1
+  # 使用 local pv 需要定义 nodeAffinity，k8s 需要根据 nodeAffinity 将 Pod 调度到有对应 local volume 的 node 上
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - ubt-srv-2
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: test
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: mysql-sc
+  resources:
+    requests:
+      storage: 1Gi # 声明存储的大小
+  volumeName: mysql-pv # 绑定 PV

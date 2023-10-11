@@ -1,0 +1,66 @@
+apiVersion: apps/v1 # Which version of the Kubernetes API you're using to create this object
+kind: StatefulSet # What kind of object you want to create
+metadata:
+  name: mysql-master
+  namespace: dev
+spec: # What state you desire for the object
+  selector:
+    matchLabels:
+      app: mysql
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysql-master
+    spec:
+      containers:
+        - name: mysql-master
+          image: mysql:latest
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-root-password
+          volumeMounts:
+            - name: mysql-local
+              mountPath: /var/lib/mysql # 将容器内部的 /var/lib/mysql 路径挂载到主机上的 /data/mysql
+            - name: mysql-config
+              mountPath: /etc/my.cnf.d/my.cnf
+              subPath: my.cnf
+      volumes:
+        - name: mysql-local
+          hostPath:
+            path: /data/mysql
+        - name: mysql-config
+          configMap:
+            name: mysql-config-master
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config-master
+  namespace: dev
+data:
+  my.cnf: | # | 符号被称为折叠标记，表示下方缩进的区块中包含多行文本数据
+    [client]
+    default-character-set=utf8
+    [mysql]
+    default-character-set=utf8
+    [mysqld]
+    server_id=1
+    default_storage_engine=innodb
+    lower_case_table_names=1
+    default-time_zone='+8:00'
+    log_bin=mysql-bin
+    skip-character-set-client-handshake
+    skip-name-resolve
+    read-only=0
+    replicate-ignore-db=mysql
+    replicate-ignore-db=sys
+    replicate-ignore-db=information_schema
+    replicate-ignore-db=performance_schema
+    binlog-do-db=db_user
+    binlog-do-db=db_goods

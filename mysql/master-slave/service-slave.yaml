@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-slave
+  namespace: dev
+spec:
+  selector:
+    app: mysql-slave
+  ports:
+    - port: 3306

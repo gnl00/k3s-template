@@ -1,0 +1,62 @@
+# 用于数据备份的定时任务
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mysql-backup
+  namespace: test
+spec:
+  schedule: "* * * * *"
+  #timeZone: "Etc/UTC"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: mysql-backup
+              image: mysql:latest
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: MYSQL_HOST
+                  value: mysql
+                - name: MYSQL_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: mysql-secret
+                      key: mysql-root-password
+                - name: MYSQL_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: mysql-secret
+                      key: mysql-username
+                - name: TZ
+                  value: Asia/Shanghai
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -ex
+                  mysqldump --host=$MYSQL_HOST --user=$MYSQL_USERNAME \
+                            --password=$MYSQL_ROOT_PASSWORD \
+                            --routines --all-databases --single-transaction \
+                            > /opt/mysql-backup/mysql-all-db-backup-`date +"%Y%m%d"`.sql
+              volumeMounts:
+                - name: localtime
+                  readOnly: true
+                  mountPath: /etc/localtime
+                - name: mysql-config
+                  mountPath: /etc/my.cnf.d/my.cnf
+                  subPath: my.cnf
+                - name: mysql-backup-pvc
+                  mountPath: /opt/mysql-backup
+          volumes:
+            - name: localtime
+              hostPath:
+                type: File
+                path: /etc/localtime
+            - name: mysql-config
+              configMap:
+                name: mysql-config
+            - name: mysql-backup-pvc
+              persistentVolumeClaim:
+                claimName: mysql-backup-pvc
