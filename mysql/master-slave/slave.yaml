@@ -55,5 +55,3 @@ data:
     replicate-ignore-db=sys
     replicate-ignore-db=information_schema
     replicate-ignore-db=performance_schema
-    binlog-do-db=db_user
-    binlog-do-db=db_goods

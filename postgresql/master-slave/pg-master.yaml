@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pg-master
+  namespace: test
+spec:
+  selector:
+    app: pg-master
+  clusterIP: None
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1 # Which version of the Kubernetes API you're using to create this object
+kind: StatefulSet # What kind of object you want to create
+metadata: # Data that helps uniquely identify the object, including a name string, UID, and optional namespace
+  name: pg-master
+  namespace: test
+spec: # What state you desire for the object
+  selector:
+    matchLabels:
+      app: pg-master
+  replicas: 1
+  template: # 创建副本的时候按照模板内描述的内容来创建
+    metadata:
+      labels:
+        app: pg-master
+    spec:
+      containers:
+        - name: pg-master
+          image: timescale/timescaledb:latest-pg15 #postgres:16.0-alpine3.17
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pg-secret
+                  key: pg-password
+          volumeMounts:
+            - name: pg-pvc
+              mountPath: /var/lib/postgresql/data
+            - name: pg-config
+              mountPath: /var/lib/postgresql/data/pg_hba.conf
+              subPath: pg_hba.conf
+      volumes:
+        - name: pg-pvc
+          persistentVolumeClaim:
+            claimName: pg-pvc
+        - name: pg-config
+          configMap:
+            name: pg-config
