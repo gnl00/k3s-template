@@ -14,6 +14,7 @@ sudo -u postgres psql
 * 配置路径：`/etc/postgresql/16/main/`
 * 数据路径：`/var/lib/postgresql/16/main/`
 * 配置模板路径：`/usr/share/postgresql/16/main/`
+* pg 命令行工具：`/usr/lib/postgresql/16/bin`
 
 > 可能会遇到 `/var/lib/postgresql/` 目录下 *operation not permitted* 的问题，解决方法：
 > * 一次性修改：`chown -R postgres:postgres /var/lib/postgresql/`
@@ -65,7 +66,7 @@ insert into myuser (name, age) values ('wangwu', 22);
 
 ## 主从复制
 
-7、创建同步账号
+7、主节点创建同步账号
 ```postgresql
 CREATE USER repl REPLICATION LOGIN ENCRYPTED PASSWORD '123456';
 ```
@@ -94,15 +95,17 @@ hot_standby_feedback = on # 如果有错误的数据复制向主进行反馈
 # synchronous_commit = on  # 开启同步复制
 ```
 
-10、重启主从服务
+10、重启主节点
 
 11、从节点同步主节点数据
 11.1、停止从节点
+
 ```shell
 sudo service postgresql stop
 ```
 
 11.2、在从节点上备份主节点数据
+
 ```shell
 pg_basebackup -h <master-host> -U repl -p 5432 -F p  -X stream -v -P -R -D /data/pgsql -C -S slave01 -l slave01
 
@@ -178,11 +181,109 @@ sync_state       | async
 reply_time       | 2023-10-13 03:12:24.342696+00
 ```
 
-12、尝试在主库插入数据，在从库查询。从库有记录表示主从复制配置完成。
+12、尝试在主库插入数据，在从库查询。从库有记录表示主从复制配置完成。多配置几个从节点就是一主多从架构了。
+
+---
+
+**主节点宕机会发生什么？**
+
+1、假设现在为一主二从的状态
+
+```shell
+postgres=# select * from pg_replication_slots;
+-[ RECORD 1 ]-------+----------
+slot_name           | slave01
+plugin              |
+slot_type           | physical
+datoid              |
+database            |
+temporary           | f
+active              | t
+active_pid          | 2739
+xmin                |
+catalog_xmin        |
+restart_lsn         | 0/7000330
+confirmed_flush_lsn |
+wal_status          | reserved
+safe_wal_size       |
+two_phase           | f
+conflicting         |
+-[ RECORD 2 ]-------+----------
+slot_name           | slave02
+plugin              |
+slot_type           | physical
+datoid              |
+database            |
+temporary           | f
+active              | t
+active_pid          | 3553
+xmin                |
+catalog_xmin        |
+restart_lsn         | 0/7000330
+confirmed_flush_lsn |
+wal_status          | reserved
+safe_wal_size       |
+two_phase           | f
+conflicting         |
+```
+
+2、让主节点下线
+
+3、主节点下线后查看从节点状态
+```shell
+postgres=# select pg_is_in_recovery();
+-[ RECORD 1 ]-----+--
+pg_is_in_recovery | t
+```
+
+可以看到依然是从库，需要手动选择某一个从库提升为主库
+```shell
+cd /usr/lib/postgresql/16/bin
+./pg_ctl promote -D /var/lib/postgresql/16/main
+```
+
+输出内容大概如下：
+```shell
+waiting for server to promote.... done
+server promoted
+```
+
+再次检查该从节点状态
+```shell
+postgres=# select pg_is_in_recovery();
+ pg_is_in_recovery
+-------------------
+ f
+(1 row)
+```
+
+理论上来说可以这样子操作：
+
+> 该从节点已经变成主节点了，接下来为对应的从节点创建复制槽
+>
+> ```postgresql
+> select * from pg_create_physical_replication_slot('slave0X');
+> 
+> -- 查看复制槽状态
+> select * from pg_replication_slots;
+> ```
+>
+> 最后编辑其他从节点的 `postgresql.auto.conf` 文件，修改 `primary_conninfo` 为新的主节点地址，重启从节点即可。
+
+但是我操作一番并未成功，可能需要再走一遍之前的步骤 11。
+
+---
+
+<br>
 
 ## 高可用部署
 
-* 主从复制
+* PostgreSQL Streaming Replication 流复制（主从复制）
+* PostgreSQL Streaming Replication + Replication Manager（repmgr）
+* PostgreSQL Streaming Replication + PGPool
+* Patroni
+
+---
 
 
 ## 参考
