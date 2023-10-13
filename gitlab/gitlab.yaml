@@ -32,7 +32,7 @@ spec:
     spec:
       containers:
         - name: gitlab
-          image: 192.168.2.221:30005/gitlab-ce:latest
+          image: gitlab-ce:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
