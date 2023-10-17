@@ -30,8 +30,9 @@ CREATE USER root superuser login PASSWORD '123456';
 5.1、修改 pg_hba.conf
 ```text
 # TYPE DATABASE USER ADDRESS METHOD
-host all all 0.0.0.0/0 md5
+host all all 0.0.0.0/0 trust
 ```
+> trust 表示不需要密码，如果需要密码则改为 md5
 
 5.2、修改 postgresql.conf
 ```text
@@ -74,7 +75,7 @@ CREATE USER repl REPLICATION LOGIN ENCRYPTED PASSWORD '123456';
 8、修改 pg_hba.conf
 ```text
 # TYPE DATABASE USER ADDRESS METHOD
-host all repl 0.0.0.0/0 md5
+host all repl 0.0.0.0/0 trust
 ```
 
 9、修改 postgresql.conf
